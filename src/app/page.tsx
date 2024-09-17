@@ -2,7 +2,7 @@
 export default function Home() {
   return (
     <div>
-      <h1>Hello Next.js</h1>
+      <h1>Bienvenue sur la page d'accueil de l'application ERP</h1>
     </div>
   );
 }
