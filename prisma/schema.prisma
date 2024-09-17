@@ -1,0 +1,339 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+// 1. suppliers
+model Supplier {
+  id                         Int                          @id @default(autoincrement())
+  suplier_number             String                       @unique
+  suplier_name               String
+  vat_number                 String
+  ContactSupplier            ContactSupplier[]
+  Item                       Item[]
+  AddressAddressTypeSupplier AddressAddressTypeSupplier[]
+
+  @@map("suppliers")
+}
+
+// 2. companies
+model Company {
+  id                        Int                         @id @default(autoincrement())
+  company_name              String
+  vat_number                String
+  phone_number_general      String
+  mail_general              String
+  bank_name                 String
+  bank_iban                 String
+  bank_bic                  String
+  CompanyContact            CompanyContact[]
+  AddressAddressTypeCompany AddressAddressTypeCompany[]
+
+  @@map("companies")
+}
+
+// 3. company_contact
+model CompanyContact {
+  id               Int     @id @default(autoincrement())
+  phone_number_pro String
+  mail_pro         String
+  // companies
+  company_id       Int
+  company          Company @relation(fields: [company_id], references: [id])
+
+  // contacts
+  contact_id Int
+  contact    Contact @relation(fields: [contact_id], references: [id])
+
+  @@map("company_contact")
+}
+
+// 4. contact_customer
+model ContactCustomer {
+  id               Int      @id @default(autoincrement())
+  phone_number_pro String
+  mail_pro         String
+  // suppliers
+  customer_id      Int
+  customer         Customer @relation(fields: [customer_id], references: [id])
+
+  // contacts
+  contact_id Int
+  contact    Contact @relation(fields: [contact_id], references: [id])
+
+  @@map("contact_customer")
+}
+
+// 5. contact_supplier
+model ContactSupplier {
+  id               Int      @id @default(autoincrement())
+  phone_number_pro String
+  mail_pro         String
+  // suppliers
+  supplier_id      Int
+  supplier         Supplier @relation(fields: [supplier_id], references: [id])
+
+  // contacts
+  contact_id Int
+  contact    Contact @relation(fields: [contact_id], references: [id])
+
+  @@map("contact_supplier")
+}
+
+// 6. contacts
+model Contact {
+  id                   Int               @id @default(autoincrement())
+  name                 String
+  fisrtname            String
+  phone_number_private String            @unique // Phone number of the contact (private)
+  mail_private         String            @unique // Mail of the contact (private)
+  // addresses
+  address_id           Int
+  address              Address           @relation(fields: [address_id], references: [id])
+  CompanyContact       CompanyContact[]
+  ContactCustomer      ContactCustomer[]
+  ContactSupplier      ContactSupplier[]
+
+  @@map("contacts")
+}
+
+// 7. addresses
+model Address {
+  id Int @id @default(autoincrement())
+
+  address            String
+  address_number     String
+  address_box        String
+  address_complement String
+  longitude          Float
+  latitude           Float
+
+  city_id                    Int
+  city                       City                         @relation(fields: [city_id], references: [id])
+  Contact                    Contact[]
+  AddressAddressTypeCustomer AddressAddressTypeCustomer[]
+  AddressAddressTypeCompany  AddressAddressTypeCompany[]
+  AddressAddressTypeSupplier AddressAddressTypeSupplier[]
+
+  @@map("addresses")
+}
+
+// 8. cities
+model City {
+  id       Int    @id @default(autoincrement())
+  city     String
+  zip_code String @unique
+
+  country_id Int
+  country    Country   @relation(fields: [country_id], references: [id])
+  Address    Address[]
+
+  @@map("cities")
+}
+
+// 9. countries
+model Country {
+  id       Int        @id @default(autoincrement())
+  country  String
+  iso_code String     @unique @db.VarChar(2) // ISO 3166-1 alpha-2 country code (ex: BE, FR, DE, etc.)
+  City     City[]
+  VatValue VatValue[]
+
+  @@map("countries")
+}
+
+// 10.catégories (categories) des produits
+model Category {
+  id       Int        @id @default(autoincrement())
+  category String     @db.VarChar(255)
+  Customer Customer[]
+
+  @@map("categories")
+}
+
+// 11. customers
+model Customer {
+  id              Int     @id @default(autoincrement())
+  customer_number String  @unique
+  customer_name   String
+  phone_number    String
+  fax_number      String
+  email           String
+  vat_number      String
+  registered_vat  String
+  is_active       Boolean
+
+  // cateories
+  category_id Int
+  category    Category @relation(fields: [category_id], references: [id])
+
+  // payment_terms
+  payment_term_id            Int
+  payment_term               PaymentTerm                  @relation(fields: [payment_term_id], references: [id])
+  ContactCustomer            ContactCustomer[]
+  Invoice                    Invoice[]
+  AddressAddressTypeCustomer AddressAddressTypeCustomer[]
+
+  @@map("customers")
+}
+
+// 12. payment_terms (payment_terms) des utilisateurs
+model PaymentTerm {
+  id                Int        @id @default(autoincrement())
+  payment_term      String // Payment term (ex: 30 days)
+  payment_term_code Int
+  Customer          Customer[]
+
+  @@map("payment_terms")
+}
+
+// 13. invoices
+model Invoice {
+  id                   Int      @id @default(autoincrement())
+  invoice_number       String   @unique
+  invoice_date         DateTime
+  due_date             DateTime
+  total_amount_exc_tva Float
+  total_amount_tva     Float
+  flag_accounting      Boolean
+  communication        String
+
+  customer_id Int
+  customer    Customer      @relation(fields: [customer_id], references: [id])
+  InvoiceItem InvoiceItem[]
+
+  @@map("invoices")
+}
+
+// 14. invoice_items
+model InvoiceItem {
+  id             Int   @id @default(autoincrement())
+  vat_value      Float
+  quantity       Int
+  price          Float
+  purchase_price Float
+  discount       Float
+
+  invoice_id Int
+  invoice    Invoice @relation(fields: [invoice_id], references: [id])
+
+  item_id Int
+  item    Item @relation(fields: [item_id], references: [id])
+
+  vat_type_id Int
+  vat_type    VatType @relation(fields: [vat_type_id], references: [id])
+
+  @@map("invoice_item")
+}
+
+// 15. vat_types
+model VatType {
+  id          Int           @id @default(autoincrement())
+  vat_type    String
+  InvoiceItem InvoiceItem[]
+  Item        Item[]
+  VatValue    VatValue[]
+
+  @@map("vat_types")
+}
+
+// 16.items
+model Item {
+  id                  Int    @id @default(autoincrement())
+  item_number         String @unique
+  supplier_number     String
+  barcode             String
+  product_description String
+  price               Float
+  purchase_price      Float
+
+  vat_type_id Int
+  vat_type    VatType @relation(fields: [vat_type_id], references: [id])
+
+  supplier_id Int
+  supplier    Supplier      @relation(fields: [supplier_id], references: [id])
+  InvoiceItem InvoiceItem[]
+
+  @@map("items")
+}
+
+// 17.vat_values
+model VatValue {
+  id        Int   @id @default(autoincrement())
+  vat_value Float
+
+  vat_type_id Int
+  vat_type    VatType @relation(fields: [vat_type_id], references: [id])
+
+  country_id Int
+  country    Country @relation(fields: [country_id], references: [id])
+
+  @@map("vat_values")
+}
+
+// 18.address_types
+model AddressType {
+  id                         Int                          @id @default(autoincrement())
+  address_type               String
+  AddressAddressTypeCustomer AddressAddressTypeCustomer[]
+  AddressAddressTypeCompany  AddressAddressTypeCompany[]
+  AddressAddressTypeSupplier AddressAddressTypeSupplier[]
+
+  @@map("address_types")
+}
+
+// 19. address_address_type_customer
+model AddressAddressTypeCustomer {
+  id         Int     @id @default(autoincrement())
+  address_id Int
+  address    Address @relation(fields: [address_id], references: [id])
+
+  address_type_id Int
+  address_type    AddressType @relation(fields: [address_type_id], references: [id])
+
+  customer_id Int
+  customer    Customer @relation(fields: [customer_id], references: [id])
+
+  @@map("address_address_type_customer")
+}
+
+// 20. address_address_type_company
+model AddressAddressTypeCompany {
+  id         Int     @id @default(autoincrement())
+  address_id Int
+  address    Address @relation(fields: [address_id], references: [id])
+
+  address_type_id Int
+  address_type    AddressType @relation(fields: [address_type_id], references: [id])
+
+  company_id Int
+  company    Company @relation(fields: [company_id], references: [id])
+
+  @@map("address_address_type_company")
+}
+
+// 21. address_address_type_supplier
+model AddressAddressTypeSupplier {
+  id         Int     @id @default(autoincrement())
+  address_id Int
+  address    Address @relation(fields: [address_id], references: [id])
+
+  address_type_id Int
+  address_type    AddressType @relation(fields: [address_type_id], references: [id])
+
+  supplier_id Int
+  supplier    Supplier @relation(fields: [supplier_id], references: [id])
+
+  @@map("address_address_type_supplier")
+}
